@@ -1,12 +1,13 @@
 #import "FMDatabase.h"
 #import "unistd.h"
 #import <objc/runtime.h>
-#import "XDBaseItem.h"
+#import "NSObject+XDB.h"
+#import "LOG.h"
 
 @interface FMDatabase ()
 
 - (FMResultSet *)executeQuery:(NSString *)sql withArgumentsInArray:(NSArray*)arrayArgs orDictionary:(NSDictionary *)dictionaryArgs orVAList:(va_list)args;
-- (BOOL)executeUpdate:(NSString*)sql error:(NSError**)outErr withArgumentsInArray:(NSArray*)arrayArgs orDictionary:(NSDictionary *)dictionaryArgs orVAList:(va_list)args orDataItem:(XDBaseItem *)dataItem;
+- (BOOL)executeUpdate:(NSString*)sql error:(NSError**)outErr withArgumentsInArray:(NSArray*)arrayArgs orDictionary:(NSDictionary *)dictionaryArgs orVAList:(va_list)args orDataItem:(NSObject*)dataItem type:(int)itemtype;
 
 @end
 
@@ -37,7 +38,11 @@
         _databasePath               = [aPath copy];
         _openResultSets             = [[NSMutableSet alloc] init];
         _db                         = nil;
+#if DEBUG
         _logsErrors                 = YES;
+#else
+        _logsErrors                 = NO;
+#endif
         _crashOnErrors              = NO;
         _maxBusyRetryTimeInterval   = 2;
     }
@@ -68,12 +73,12 @@
 }
 
 + (NSString*)FMDBUserVersion {
-    return @"2.3";
+    return @"2.5";
 }
 
-// returns 0x0230 for version 2.3.  This makes it super easy to do things like:
-// /* need to make sure to do X with FMDB version 2.3 or later */
-// if ([FMDatabase FMDBVersion] >= 0x0230) { … }
+// returns 0x0240 for version 2.4.  This makes it super easy to do things like:
+// /* need to make sure to do X with FMDB version 2.4 or later */
+// if ([FMDatabase FMDBVersion] >= 0x0240) { … }
 
 + (SInt32)FMDBVersion {
     
@@ -152,11 +157,14 @@
 
 #if SQLITE_VERSION_NUMBER >= 3005000
 - (BOOL)openWithFlags:(int)flags {
+    return [self openWithFlags:flags vfs:nil];
+}
+- (BOOL)openWithFlags:(int)flags vfs:(NSString *)vfsName; {
     if (_db) {
         return YES;
     }
 
-    int err = sqlite3_open_v2([self sqlitePath], &_db, flags, NULL /* Name of VFS module to use */);
+    int err = sqlite3_open_v2([self sqlitePath], &_db, flags, [vfsName UTF8String]);
     if(err != SQLITE_OK) {
         NSLog(@"error opening!: %d", err);
         return NO;
@@ -232,7 +240,11 @@ static int FMDBDatabaseBusyHandler(void *f, int count) {
     NSTimeInterval delta = [NSDate timeIntervalSinceReferenceDate] - (self->_startBusyRetryTime);
     
     if (delta < [self maxBusyRetryTimeInterval]) {
-        sqlite3_sleep(50); // milliseconds
+        int requestedSleepInMillseconds = (int) arc4random_uniform(50) + 50;
+        int actualSleepInMilliseconds = sqlite3_sleep(requestedSleepInMillseconds);
+        if (actualSleepInMilliseconds != requestedSleepInMillseconds) {
+            NSLog(@"WARNING: Requested sleep of %i milliseconds, but SQLite returned %i. Maybe SQLite wasn't built with HAVE_USLEEP=1?", requestedSleepInMillseconds, actualSleepInMilliseconds);
+        }
         return 1;
     }
     
@@ -534,17 +546,18 @@ static int FMDBDatabaseBusyHandler(void *f, int count) {
         sqlite3_bind_null(pStmt, idx);
     }
     
+    int bindRet = 0;
     switch (type) {
         case SQLITE_INTEGER:{
-            sqlite3_bind_int64(pStmt, idx, (long long)[obj unsignedLongLongValue]);
+           bindRet= sqlite3_bind_int64(pStmt, idx, (long long)[obj unsignedLongLongValue]);
             break;
         }
         case SQLITE_FLOAT:{
-            sqlite3_bind_double(pStmt, idx, [obj doubleValue]);
+           bindRet= sqlite3_bind_double(pStmt, idx, [obj doubleValue]);
             break;
         }
         case SQLITE_TEXT:{
-            sqlite3_bind_text(pStmt, idx, [[obj description] UTF8String], -1, SQLITE_STATIC);
+            bindRet=  sqlite3_bind_text(pStmt, idx, [obj UTF8String], -1, SQLITE_STATIC);
             break;
         }
         case SQLITE_BLOB:{
@@ -554,12 +567,16 @@ static int FMDBDatabaseBusyHandler(void *f, int count) {
                 // Don't pass a NULL pointer, or sqlite will bind a SQL null instead of a blob.
                 bytes = "";
             }
-            sqlite3_bind_blob(pStmt, idx, bytes, (int)[obj length], SQLITE_STATIC);
+         bindRet=   sqlite3_bind_blob(pStmt, idx, bytes, (int)[obj length], SQLITE_STATIC);
             break;
         }
         default:
             break;
     }
+#if DEBUG
+    if(bindRet !=0)
+        NSLog(@"ret: %d", bindRet);
+#endif
 }
 
 
@@ -587,10 +604,7 @@ static int FMDBDatabaseBusyHandler(void *f, int count) {
     }
     else if ([obj isKindOfClass:[NSNumber class]]) {
         
-        if (strcmp([obj objCType], @encode(BOOL)) == 0) {
-            sqlite3_bind_int(pStmt, idx, ([obj boolValue] ? 1 : 0));
-        }
-        else if (strcmp([obj objCType], @encode(char)) == 0) {
+        if (strcmp([obj objCType], @encode(char)) == 0) {
             sqlite3_bind_int(pStmt, idx, [obj charValue]);
         }
         else if (strcmp([obj objCType], @encode(unsigned char)) == 0) {
@@ -625,6 +639,9 @@ static int FMDBDatabaseBusyHandler(void *f, int count) {
         }
         else if (strcmp([obj objCType], @encode(double)) == 0) {
             sqlite3_bind_double(pStmt, idx, [obj doubleValue]);
+        }
+        else if (strcmp([obj objCType], @encode(BOOL)) == 0) {
+            sqlite3_bind_int(pStmt, idx, ([obj boolValue] ? 1 : 0));
         }
         else {
             sqlite3_bind_text(pStmt, idx, [[obj description] UTF8String], -1, SQLITE_STATIC);
@@ -907,6 +924,12 @@ static int FMDBDatabaseBusyHandler(void *f, int count) {
     return rs;
 }
 
+
+- (FMResultSet *)executeQuery:(NSString*)sql orVAList:(va_list)args {
+    id result = [self executeQuery:sql withArgumentsInArray:nil orDictionary:nil orVAList:args];
+    return result;
+}
+
 - (FMResultSet *)executeQuery:(NSString*)sql, ... {
     va_list args;
     va_start(args, sql);
@@ -940,7 +963,7 @@ static int FMDBDatabaseBusyHandler(void *f, int count) {
 
 #pragma mark Execute updates
 
-- (BOOL)executeUpdate:(NSString*)sql error:(NSError**)outErr withArgumentsInArray:(NSArray*)arrayArgs orDictionary:(NSDictionary *)dictionaryArgs orVAList:(va_list)args orDataItem:(XDBaseItem *)dataItem{
+- (BOOL)executeUpdate:(NSString*)sql error:(NSError**)outErr withArgumentsInArray:(NSArray*)arrayArgs orDictionary:(NSDictionary *)dictionaryArgs orVAList:(va_list)args  orDataItem:(NSObject*)dataItem type:(int)datatype{
     
     if (![self databaseExists]) {
         return NO;
@@ -997,28 +1020,32 @@ static int FMDBDatabaseBusyHandler(void *f, int count) {
     int idx = 0;
     int queryCount = sqlite3_bind_parameter_count(pStmt);
     
-    
     if(dataItem){
+        ////XDB_Insert or XDB_Replace
         int type = 0;
-        while (YES) {
-            
-            NSArray*infoArray= [[dataItem class] tableItemName];
-            NSArray*infoType= [[dataItem class] tableItemType];
-            NSString* name =nil;
-            id ID=nil;
-            for (int i=1; i<infoArray.count; i++) {
-                idx++;
-               name = infoArray[i];
-               type = [infoType[i]intValue];
-               ID =  [dataItem valueForKey:name];
-               [self dataItemBindObject:ID toColumn:i inStatement:pStmt type:type];
-            }
-            break;
-        //    [self bindObject:tmp toColumn:idx inStatement:pStmt];
+        Class class =[dataItem class];
+        NSArray*infoArray= [class itemName];
+        NSArray*infoType= [class itemType];
+        NSString* name =nil;
+        id ID=nil;
+        for (NSUInteger i=0; i<infoArray.count; i++) {
+            name = infoArray[i];
+            type = [infoType[i]intValue];
+            ID =  [dataItem valueForKey:name];
+            //这里的column是sql对应的key的index，不是表的index
+            idx++;
+            [self dataItemBindObject:ID toColumn:(int)idx inStatement:pStmt type:type];
         }
+        
+        if(datatype == XDB_Updata){
+            idx++;
+            int primaryKeyType = [[dataItem class]tableItemPrimaryKeyType];
+            id primaryKeyValue = [dataItem valueForKey:[[dataItem class] tableItemPrimaryKey]];
+            [self dataItemBindObject:primaryKeyValue toColumn:(int)idx inStatement:pStmt type:primaryKeyType];
+        }
+     
     }else
-    
-    
+
     // If dictionaryArgs is passed in, that means we are using sqlite's named parameter support
     if (dictionaryArgs) {
         
@@ -1150,33 +1177,41 @@ static int FMDBDatabaseBusyHandler(void *f, int count) {
     }
     
     _isExecutingStatement = NO;
-    return (rc == SQLITE_DONE || rc == SQLITE_OK);
+    
+    BOOL sucess = (rc == SQLITE_DONE || rc == SQLITE_OK);
+    if(dataItem && sucess){
+        [dataItem setValue:@([self lastInsertRowId]) forKey:XDBaseItemDBID];
+    }
+    if (!sucess && _logsErrors) {
+        XLogError(@"Err %d: %@", [self lastErrorCode], [self lastErrorMessage]);
+    }
+    return sucess;
 }
 
+- (BOOL)executeUpdate:(NSString*)sql withDataItem:(NSObject*)dataItem type:(int)itemtype{
+    return [self executeUpdate:sql error:nil withArgumentsInArray:nil orDictionary:nil orVAList:nil orDataItem:dataItem type:itemtype];
+}
 
 - (BOOL)executeUpdate:(NSString*)sql, ... {
     va_list args;
     va_start(args, sql);
     
-    BOOL result = [self executeUpdate:sql error:nil withArgumentsInArray:nil orDictionary:nil orVAList:args orDataItem:nil];
+    BOOL result = [self executeUpdate:sql error:nil withArgumentsInArray:nil orDictionary:nil orVAList:args orDataItem:nil type:0];
     
     va_end(args);
     return result;
 }
 
-- (BOOL)executeUpdate:(NSString*)sql withDataItem:(XDBaseItem *)dataItem{
-    return [self executeUpdate:sql error:nil withArgumentsInArray:nil orDictionary:nil orVAList:nil orDataItem:dataItem];
-}
 - (BOOL)executeUpdate:(NSString*)sql withArgumentsInArray:(NSArray *)arguments {
-    return [self executeUpdate:sql error:nil withArgumentsInArray:arguments orDictionary:nil orVAList:nil orDataItem:nil];
+    return [self executeUpdate:sql error:nil withArgumentsInArray:arguments orDictionary:nil orVAList:nil orDataItem:nil type:0];
 }
 
 - (BOOL)executeUpdate:(NSString*)sql withParameterDictionary:(NSDictionary *)arguments {
-    return [self executeUpdate:sql error:nil withArgumentsInArray:nil orDictionary:arguments orVAList:nil orDataItem:nil];
+    return [self executeUpdate:sql error:nil withArgumentsInArray:nil orDictionary:arguments orVAList:nil orDataItem:nil type:0];
 }
 
 - (BOOL)executeUpdate:(NSString*)sql withVAList:(va_list)args {
-    return [self executeUpdate:sql error:nil withArgumentsInArray:nil orDictionary:nil orVAList:args orDataItem:nil];
+    return [self executeUpdate:sql error:nil withArgumentsInArray:nil orDictionary:nil orVAList:args orDataItem:nil type:0];
 }
 
 - (BOOL)executeUpdateWithFormat:(NSString*)format, ... {
@@ -1238,7 +1273,7 @@ int FMDBExecuteBulkSQLCallback(void *theBlockAsVoid, int columns, char **values,
     va_list args;
     va_start(args, outErr);
     
-    BOOL result = [self executeUpdate:sql error:outErr withArgumentsInArray:nil orDictionary:nil orVAList:args orDataItem:nil];
+    BOOL result = [self executeUpdate:sql error:outErr withArgumentsInArray:nil orDictionary:nil orVAList:args orDataItem:nil type:0];
     
     va_end(args);
     return result;
@@ -1251,7 +1286,7 @@ int FMDBExecuteBulkSQLCallback(void *theBlockAsVoid, int columns, char **values,
     va_list args;
     va_start(args, outErr);
     
-    BOOL result = [self executeUpdate:sql error:outErr withArgumentsInArray:nil orDictionary:nil orVAList:args orDataItem:nil];
+    BOOL result = [self executeUpdate:sql error:outErr withArgumentsInArray:nil orDictionary:nil orVAList:args orDataItem:nil type:0];
     
     va_end(args);
     return result;

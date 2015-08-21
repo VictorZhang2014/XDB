@@ -76,6 +76,8 @@
 
 @property (atomic, readonly) int openFlags;
 
+@property (atomic, readonly) FMDatabase* db;
+
 ///----------------------------------------------------
 /// @name Initialization, opening, and closing of queue
 ///----------------------------------------------------
@@ -117,6 +119,17 @@
 
 - (instancetype)initWithPath:(NSString*)aPath flags:(int)openFlags;
 
+/** Create queue using path and specified flags.
+ 
+ @param aPath The file path of the database.
+ @param openFlags Flags passed to the openWithFlags method of the database
+ @param vfsName The name of a custom virtual file system
+ 
+ @return The `FMDatabaseQueue` object. `nil` on error.
+ */
+
+- (instancetype)initWithPath:(NSString*)aPath flags:(int)openFlags vfs:(NSString *)vfsName;
+
 /** Returns the Class of 'FMDatabase' subclass, that will be used to instantiate database object.
  
  Subclasses can override this method to return specified Class of 'FMDatabase' subclass.
@@ -146,14 +159,14 @@
  @param block The code to be run on the queue of `FMDatabaseQueue`
  */
 
-- (void)inTransaction:(void (^)(FMDatabase *db, BOOL *rollback))block;
+- (BOOL)inTransaction:(void (^)(FMDatabase *db, BOOL *rollback))block;
 
 /** Synchronously perform database operations on queue, using deferred transactions.
 
  @param block The code to be run on the queue of `FMDatabaseQueue`
  */
 
-- (void)inDeferredTransaction:(void (^)(FMDatabase *db, BOOL *rollback))block;
+- (BOOL)inDeferredTransaction:(void (^)(FMDatabase *db, BOOL *rollback))block;
 
 ///-----------------------------------------------
 /// @name Dispatching database operations to queue

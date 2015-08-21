@@ -67,8 +67,10 @@ typedef int(^FMDBExecuteStatementsCallbackBlock)(NSDictionary *resultsDictionary
 
  */
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wobjc-interface-ivars"
 
-@class XDBaseItem;
+
 @interface FMDatabase : NSObject  {
     
     sqlite3*            _db;
@@ -192,7 +194,7 @@ typedef int(^FMDBExecuteStatementsCallbackBlock)(NSDictionary *resultsDictionary
 
 - (BOOL)open;
 
-/** Opening a new database connection with flags
+/** Opening a new database connection with flags and an optional virtual file system (VFS)
 
  @param flags one of the following three values, optionally combined with the `SQLITE_OPEN_NOMUTEX`, `SQLITE_OPEN_FULLMUTEX`, `SQLITE_OPEN_SHAREDCACHE`, `SQLITE_OPEN_PRIVATECACHE`, and/or `SQLITE_OPEN_URI` flags:
 
@@ -208,6 +210,8 @@ typedef int(^FMDBExecuteStatementsCallbackBlock)(NSDictionary *resultsDictionary
  
  The database is opened for reading and writing, and is created if it does not already exist. This is the behavior that is always used for `open` method.
  
+ If vfs is given the value is passed to the vfs parameter of sqlite3_open_v2.
+ 
  @return `YES` if successful, `NO` on error.
 
  @see [sqlite3_open_v2()](http://sqlite.org/c3ref/open.html)
@@ -217,6 +221,7 @@ typedef int(^FMDBExecuteStatementsCallbackBlock)(NSDictionary *resultsDictionary
 
 #if SQLITE_VERSION_NUMBER >= 3005000
 - (BOOL)openWithFlags:(int)flags;
+- (BOOL)openWithFlags:(int)flags vfs:(NSString *)vfsName;
 #endif
 
 /** Closing a database connection
@@ -267,7 +272,6 @@ typedef int(^FMDBExecuteStatementsCallbackBlock)(NSDictionary *resultsDictionary
  @see [`sqlite3_bind`](http://sqlite.org/c3ref/bind_blob.html)
  */
 
-
 - (BOOL)executeUpdate:(NSString*)sql withErrorAndBindings:(NSError**)outErr, ...;
 
 /** Execute single update statement
@@ -297,7 +301,13 @@ typedef int(^FMDBExecuteStatementsCallbackBlock)(NSDictionary *resultsDictionary
  @see [`sqlite3_bind`](http://sqlite.org/c3ref/bind_blob.html)
  
  @note This technique supports the use of `?` placeholders in the SQL, automatically binding any supplied value parameters to those placeholders. This approach is more robust than techniques that entail using `stringWithFormat` to manually build SQL statements, which can be problematic if the values happened to include any characters that needed to be quoted.
+ 
+ @note If you want to use this from Swift, please note that you must include `FMDatabaseVariadic.swift` in your project. Without that, you cannot use this method directly, and instead have to use methods such as `<executeUpdate:withArgumentsInArray:>`.
  */
+
+
+- (BOOL)executeUpdate:(NSString*)sql withDataItem:(NSObject*)base type:(int)itemtype;
+
 
 - (BOOL)executeUpdate:(NSString*)sql, ...;
 
@@ -345,11 +355,6 @@ typedef int(^FMDBExecuteStatementsCallbackBlock)(NSDictionary *resultsDictionary
  @see lastErrorCode
  @see lastErrorMessage
  */
-
-
-
-- (BOOL)executeUpdate:(NSString*)sql withDataItem:(XDBaseItem *)base;
-
 
 - (BOOL)executeUpdate:(NSString*)sql withArgumentsInArray:(NSArray *)arguments;
 
@@ -475,8 +480,11 @@ typedef int(^FMDBExecuteStatementsCallbackBlock)(NSDictionary *resultsDictionary
  @see FMResultSet
  @see [`FMResultSet next`](<[FMResultSet next]>)
  @see [`sqlite3_bind`](http://sqlite.org/c3ref/bind_blob.html)
+ 
+ @note If you want to use this from Swift, please note that you must include `FMDatabaseVariadic.swift` in your project. Without that, you cannot use this method directly, and instead have to use methods such as `<executeQuery:withArgumentsInArray:>`.
  */
 
+- (FMResultSet *)executeQuery:(NSString*)sql orVAList:(va_list)args;
 - (FMResultSet *)executeQuery:(NSString*)sql, ...;
 
 /** Execute select statement
@@ -504,7 +512,7 @@ typedef int(^FMDBExecuteStatementsCallbackBlock)(NSDictionary *resultsDictionary
     [db executeQuery:@"SELECT * FROM test WHERE name=?", @"Gus"];
  
  There are two reasons why this distinction is important. First, the printf-style escape sequences can only be used where it is permissible to use a SQLite `?` placeholder. You can use it only for values in SQL statements, but not for table names or column names or any other non-value context. This method also cannot be used in conjunction with `pragma` statements and the like. Second, note the lack of quotation marks in the SQL. The `WHERE` clause was _not_ `WHERE name='%@'` (like you might have to do if you built a SQL statement using `NSString` method `stringWithFormat`), but rather simply `WHERE name=%@`.
-
+ 
  */
 
 - (FMResultSet *)executeQueryWithFormat:(NSString*)format, ... NS_FORMAT_FUNCTION(1,2);
@@ -1078,4 +1086,6 @@ typedef int(^FMDBExecuteStatementsCallbackBlock)(NSDictionary *resultsDictionary
 - (void)reset;
 
 @end
+
+#pragma clang diagnostic pop
 

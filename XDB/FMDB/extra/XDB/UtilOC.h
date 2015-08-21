@@ -6,11 +6,7 @@
 //  Copyright (c) 2014 zouxu. All rights reserved.
 //
 
-#import <Foundation/Foundation.h>
-#import <CoreLocation/CoreLocation.h>
-#import <UIKit/UIKit.h>
-
-typedef void (^MyLocBlk)(NSString* name,  CLLocation* loc);
+#import <Foundation/Foundation.h> 
 
 @interface UtilOC : NSObject
 //file
@@ -21,10 +17,5 @@ typedef void (^MyLocBlk)(NSString* name,  CLLocation* loc);
 +(BOOL)fileReadABS:(NSString*)file_Name data:(NSData**)data;
 +(BOOL)fileExistABS:(NSString*)file_Name;
 +(BOOL)fileDeleteABS:(NSString*)file_Name;
-
-+(NSMutableArray*)getAllFile:(NSString*)dir;
-
- 
-
 @end
 

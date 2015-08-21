@@ -13,9 +13,7 @@ void testDateFormat();
 void FMDBReportABugFunction();
 void testStatementCaching();
 
-int ___main (int argc, const char * argv[]) {
-    
-    
+int main (int argc, const char * argv[]) {
     
 @autoreleasepool {
     

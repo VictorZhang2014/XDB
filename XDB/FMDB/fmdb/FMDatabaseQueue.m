@@ -51,7 +51,11 @@ static const void * const kDispatchQueueSpecificKey = &kDispatchQueueSpecificKey
     return [FMDatabase class];
 }
 
-- (instancetype)initWithPath:(NSString*)aPath flags:(int)openFlags {
+-(FMDatabase*)db{
+    return _db;
+}
+
+- (instancetype)initWithPath:(NSString*)aPath flags:(int)openFlags vfs:(NSString *)vfsName {
     
     self = [super init];
     
@@ -61,7 +65,7 @@ static const void * const kDispatchQueueSpecificKey = &kDispatchQueueSpecificKey
         FMDBRetain(_db);
         
 #if SQLITE_VERSION_NUMBER >= 3005000
-        BOOL success = [_db openWithFlags:openFlags];
+        BOOL success = [_db openWithFlags:openFlags vfs:vfsName];
 #else
         BOOL success = [_db open];
 #endif
@@ -81,10 +85,14 @@ static const void * const kDispatchQueueSpecificKey = &kDispatchQueueSpecificKey
     return self;
 }
 
+- (instancetype)initWithPath:(NSString*)aPath flags:(int)openFlags {
+    return [self initWithPath:aPath flags:openFlags vfs:nil];
+}
+
 - (instancetype)initWithPath:(NSString*)aPath {
     
     // default flags for sqlite3_open
-    return [self initWithPath:aPath flags:SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE];
+    return [self initWithPath:aPath flags:SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE vfs:nil];
 }
 
 - (instancetype)init {
@@ -108,10 +116,10 @@ static const void * const kDispatchQueueSpecificKey = &kDispatchQueueSpecificKey
 
 - (void)close {
     FMDBRetain(self);
-    dispatch_sync(_queue, ^() { 
-        [_db close];
+    dispatch_sync(_queue, ^() {
+        [self->_db close];
         FMDBRelease(_db);
-        _db = 0x00;
+        self->_db = 0x00;
     });
     FMDBRelease(self);
 }
@@ -123,7 +131,7 @@ static const void * const kDispatchQueueSpecificKey = &kDispatchQueueSpecificKey
 #if SQLITE_VERSION_NUMBER >= 3005000
         BOOL success = [_db openWithFlags:_openFlags];
 #else
-        BOOL success = [db open];
+        BOOL success = [_db open];
 #endif
         if (!success) {
             NSLog(@"FMDatabaseQueue could not reopen database for path %@", _path);
@@ -152,7 +160,7 @@ static const void * const kDispatchQueueSpecificKey = &kDispatchQueueSpecificKey
         if ([db hasOpenResultSets]) {
             NSLog(@"Warning: there is at least one open result set around after performing [FMDatabaseQueue inDatabase:]");
             
-#ifdef DEBUG
+#if defined(DEBUG) && DEBUG
             NSSet *openSetCopy = FMDBReturnAutoreleased([[db valueForKey:@"_openResultSets"] copy]);
             for (NSValue *rsInWrappedInATastyValueMeal in openSetCopy) {
                 FMResultSet *rs = (FMResultSet *)[rsInWrappedInATastyValueMeal pointerValue];
@@ -166,12 +174,11 @@ static const void * const kDispatchQueueSpecificKey = &kDispatchQueueSpecificKey
 }
 
 
-- (void)beginTransaction:(BOOL)useDeferred withBlock:(void (^)(FMDatabase *db, BOOL *rollback))block {
+- (BOOL)beginTransaction:(BOOL)useDeferred withBlock:(void (^)(FMDatabase *db, BOOL *rollback))block {
+    __block BOOL shouldRollback = NO;
     FMDBRetain(self);
     dispatch_sync(_queue, ^() { 
-        
-        BOOL shouldRollback = NO;
-        
+                
         if (useDeferred) {
             [[self database] beginDeferredTransaction];
         }
@@ -190,14 +197,15 @@ static const void * const kDispatchQueueSpecificKey = &kDispatchQueueSpecificKey
     });
     
     FMDBRelease(self);
+    return shouldRollback;
 }
 
-- (void)inDeferredTransaction:(void (^)(FMDatabase *db, BOOL *rollback))block {
-    [self beginTransaction:YES withBlock:block];
+- (BOOL)inDeferredTransaction:(void (^)(FMDatabase *db, BOOL *rollback))block {
+    return [self beginTransaction:YES withBlock:block];
 }
 
-- (void)inTransaction:(void (^)(FMDatabase *db, BOOL *rollback))block {
-    [self beginTransaction:NO withBlock:block];
+- (BOOL)inTransaction:(void (^)(FMDatabase *db, BOOL *rollback))block {
+    return [self beginTransaction:NO withBlock:block];
 }
 
 #if SQLITE_VERSION_NUMBER >= 3007000

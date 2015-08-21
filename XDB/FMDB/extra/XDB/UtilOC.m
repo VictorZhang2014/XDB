@@ -6,8 +6,7 @@
 //  Copyright (c) 2014 zouxu. All rights reserved.
 //
 
-#import "UtilOC.h"
-//#import "NSString+Util.h"
+#import "UtilOC.h" 
 
 @implementation UtilOC
 
@@ -74,8 +73,6 @@
     NSError *error;
     BOOL success = [fileManager removeItemAtPath:filePath error:&error];
     if (success) {
-        UIAlertView *removeSuccessFulAlert=[[UIAlertView alloc]initWithTitle:@"Congratulation:" message:@"Successfully removed" delegate:self cancelButtonTitle:@"Close" otherButtonTitles:nil];
-        [removeSuccessFulAlert show];
         return YES;
     }
     else
@@ -90,30 +87,4 @@
         return NO;
     return YES;
 }
-+(void)getAllAction:(NSString*)path fm:(NSFileManager*)fm files:(NSMutableArray*)files{
-    NSArray *contents = [fm subpathsOfDirectoryAtPath:path error:NULL];
-    
-    NSMutableArray *fileList = [NSMutableArray arrayWithArray:contents];
-    
-    while (fileList.count>0) {
-        NSString *filename = fileList[fileList.count-1];
-        [fileList removeLastObject];
-        // NSError* error;
-        [files addObject:[path stringByAppendingPathComponent:filename]];
-        // BOOL suc = [fm removeItemAtPath:[path stringByAppendingPathComponent:filename] error:&error];
-        //if(!suc){
-        //    NSLog(@"removeFailed: %@", error);
-        // }
-    }
-}
-
-+( NSMutableArray*)getAllFile:(NSString*)dir{
-    NSMutableArray* array = [NSMutableArray new];
-    NSFileManager *fileManager = [NSFileManager defaultManager];
-    [self getAllAction:dir fm:fileManager files:array];
-    return array;
-}
-
- 
-
 @end
