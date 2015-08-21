@@ -37,9 +37,9 @@
 		426191E91B86C37800912B64 /* FMDB.h in Headers */ = {isa = PBXBuildFile; fileRef = 426191C61B86C37800912B64 /* FMDB.h */; };
 		426191EA1B86C37800912B64 /* FMResultSet.h in Headers */ = {isa = PBXBuildFile; fileRef = 426191C71B86C37800912B64 /* FMResultSet.h */; };
 		426191EB1B86C37800912B64 /* FMResultSet.m in Sources */ = {isa = PBXBuildFile; fileRef = 426191C81B86C37800912B64 /* FMResultSet.m */; };
-		426191EE1B86C3C500912B64 /* AXDBTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 426191B21B86C37800912B64 /* AXDBTests.m */; };
 		426191F11B86C3FA00912B64 /* LOG.h in Headers */ = {isa = PBXBuildFile; fileRef = 426191EF1B86C3FA00912B64 /* LOG.h */; };
 		426191F21B86C3FA00912B64 /* LOG.m in Sources */ = {isa = PBXBuildFile; fileRef = 426191F01B86C3FA00912B64 /* LOG.m */; };
+		426191F41B86C66E00912B64 /* AXDBTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 426191F31B86C66E00912B64 /* AXDBTests.m */; };
 		42F7093B1B21AC5800897D64 /* XDB.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42F7092F1B21AC5800897D64 /* XDB.framework */; };
 /* End PBXBuildFile section */
 
@@ -63,7 +63,6 @@
 		426191A91B86C37800912B64 /* fts3_tokenizer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fts3_tokenizer.h; sourceTree = "<group>"; };
 		426191AB1B86C37800912B64 /* FMDatabase+InMemoryOnDiskIO.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "FMDatabase+InMemoryOnDiskIO.h"; sourceTree = "<group>"; };
 		426191AC1B86C37800912B64 /* FMDatabase+InMemoryOnDiskIO.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "FMDatabase+InMemoryOnDiskIO.m"; sourceTree = "<group>"; };
-		426191B21B86C37800912B64 /* AXDBTests.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = AXDBTests.m; path = ../XDB/FMDB/extra/XDB/AXDBTests.m; sourceTree = "<group>"; };
 		426191B31B86C37800912B64 /* NSObject+XDB.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSObject+XDB.h"; sourceTree = "<group>"; };
 		426191B41B86C37800912B64 /* NSObject+XDB.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSObject+XDB.m"; sourceTree = "<group>"; };
 		426191B51B86C37800912B64 /* SQLTableInfo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SQLTableInfo.h; sourceTree = "<group>"; };
@@ -87,6 +86,7 @@
 		426191C81B86C37800912B64 /* FMResultSet.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FMResultSet.m; sourceTree = "<group>"; };
 		426191EF1B86C3FA00912B64 /* LOG.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LOG.h; sourceTree = "<group>"; };
 		426191F01B86C3FA00912B64 /* LOG.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = LOG.m; sourceTree = "<group>"; };
+		426191F31B86C66E00912B64 /* AXDBTests.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AXDBTests.m; sourceTree = "<group>"; };
 		42F7092F1B21AC5800897D64 /* XDB.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = XDB.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		42F709331B21AC5800897D64 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		42F7093A1B21AC5800897D64 /* XDBTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = XDBTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -230,7 +230,7 @@
 		42F7093E1B21AC5800897D64 /* XDBTests */ = {
 			isa = PBXGroup;
 			children = (
-				426191B21B86C37800912B64 /* AXDBTests.m */,
+				426191F31B86C66E00912B64 /* AXDBTests.m */,
 				42F7093F1B21AC5800897D64 /* Supporting Files */,
 			);
 			path = XDBTests;
@@ -388,7 +388,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				426191EE1B86C3C500912B64 /* AXDBTests.m in Sources */,
+				426191F41B86C66E00912B64 /* AXDBTests.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
